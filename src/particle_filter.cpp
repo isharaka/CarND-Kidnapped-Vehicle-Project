@@ -82,7 +82,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		std::cout << " delta_t " << delta_t << " velocity " << velocity << " yaw rate " << yaw_rate << std::endl;
 
 	for(int i = 0; i< particles.size(); i++) {
-		std::cout << "p " << i << " x " << particles[i].x << " y " << particles[i].y << " theta " << particles[i].theta << std::endl;
+		//std::cout << "p " << i << " x " << particles[i].x << " y " << particles[i].y << " theta " << particles[i].theta << std::endl;
 	}
 
 }
@@ -105,8 +105,8 @@ void ParticleFilter::dataAssociation(/*std::vector<LandmarkObs> predicted*/const
 										+ observations[o].x * std::sin(particles[p].theta)
 										+ observations[o].y * std::cos(particles[p].theta);
 
-			//std::cout << " o " << o << " obs " << observations[o].x << ":" << observations[o].y <<
-			//			" trans " << transformed_observation.x << ":" << transformed_observation.y << std::endl;
+			//std::cout <<  "p " << p << " o " << o << " obs " << observations[o].x << ":" << observations[o].y <<
+			//			" trans " << transformed_observation.x << ":" << transformed_observation.y;
 
 			double min_distance = std::numeric_limits<double>::max();
 			int closest_landmark;
@@ -127,7 +127,7 @@ void ParticleFilter::dataAssociation(/*std::vector<LandmarkObs> predicted*/const
 			particles[p].sense_x.push_back(transformed_observation.x);
 			particles[p].sense_y.push_back(transformed_observation.y);
 
-			//std::cout<<"p " << p <<" o " <<o << " x " << transformed_observation.x << " y " << transformed_observation.y << " l " << closest_landmark << std::endl;
+			//std::cout<<" l " << particles[p].associations[o] << std::endl;
 		}
 	}
 }
@@ -153,17 +153,23 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 	for (int p = 0; p < num_particles; ++p) {
 		double weight = 1.0;
+		//std::cout << " p " << p;
 		for (int o = 0; o < observations.size(); ++o) {
-			double mu_x = map_landmarks.landmark_list[particles[p].associations[o]].x_f;
-			double mu_y = map_landmarks.landmark_list[particles[p].associations[o]].y_f;
+			//std::cout << " o " << o;
+			double mu_x = map_landmarks.landmark_list[particles[p].associations[o]-1].x_f;
+			double mu_y = map_landmarks.landmark_list[particles[p].associations[o]-1].y_f;
 
 			double x_obs = particles[p].sense_x[o];
 			double y_obs = particles[p].sense_y[o];
+
+			//std::cout << " mu " << mu_x << ":" << mu_y << " obs " << x_obs << ":" << y_obs;
 
 			double gauss_norm = (1/(2 * M_PI * sig_x * sig_y));
 			double exponent = (pow(x_obs - mu_x,2))/(2 * pow(sig_x,2)) + (pow(y_obs - mu_y,2))/(2 * pow(sig_y,2));
 
 			weight *= gauss_norm * exp(-exponent);
+
+			//std::cout << " gn " << gauss_norm << " ex " << exponent << " w " << weight << std::endl;
 		}
 
 		particles[p].weight = weight;
