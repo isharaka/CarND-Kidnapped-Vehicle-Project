@@ -82,7 +82,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		std::cout << " delta_t " << delta_t << " velocity " << velocity << " yaw rate " << yaw_rate << std::endl;
 
 	for(int i = 0; i< particles.size(); i++) {
-		std::cout << "i " << i << " x " << particles[i].x << " y " << particles[i].y << " theta " << particles[i].theta << std::endl;
+		std::cout << "p " << i << " x " << particles[i].x << " y " << particles[i].y << " theta " << particles[i].theta << std::endl;
 	}
 
 }
@@ -117,13 +117,17 @@ void ParticleFilter::dataAssociation(/*std::vector<LandmarkObs> predicted*/const
 								+ pow(map_landmarks.landmark_list[l].y_f - transformed_observation.y, 2);
 
 				// if this distance is less than min distance,associate current particle with that landmark index
-				if (distance < min_distance) 
+				if (distance < min_distance) {
 					closest_landmark = map_landmarks.landmark_list[l].id_i;
+					min_distance = distance;
+				}
 			}
 
 			particles[p].associations.push_back(closest_landmark);
 			particles[p].sense_x.push_back(transformed_observation.x);
 			particles[p].sense_y.push_back(transformed_observation.y);
+
+			//std::cout<<"p " << p <<" o " <<o << " x " << transformed_observation.x << " y " << transformed_observation.y << " l " << closest_landmark << std::endl;
 		}
 	}
 }
