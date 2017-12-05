@@ -64,11 +64,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-
 	for(int i = 0; i< particles.size(); i++) {
 		if (std::abs(yaw_rate) > 0.001) {
 			particles[i].x += velocity * (std::sin(particles[i].theta + yaw_rate*delta_t) - std::sin(particles[i].theta)) / yaw_rate;
-			particles[i].y += velocity * (-std::cos(particles[i].theta - yaw_rate*delta_t) + std::cos(particles[i].theta)) / yaw_rate;
+			particles[i].y += velocity * (std::cos(particles[i].theta) - std::cos(particles[i].theta + yaw_rate*delta_t)) / yaw_rate;
 		} else {
 			particles[i].x += velocity * std::sin(particles[i].theta) * delta_t;
 			particles[i].y += velocity * std::cos(particles[i].theta) * delta_t;
@@ -82,7 +81,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		std::cout << " delta_t " << delta_t << " velocity " << velocity << " yaw rate " << yaw_rate << std::endl;
 
 	for(int i = 0; i< particles.size(); i++) {
-		//std::cout << "p " << i << " x " << particles[i].x << " y " << particles[i].y << " theta " << particles[i].theta << std::endl;
+		//std::cout << "prediction p " << i << " x " << particles[i].x << " y " << particles[i].y << " theta " << particles[i].theta << std::endl;
 	}
 
 }
@@ -94,6 +93,7 @@ void ParticleFilter::dataAssociation(/*std::vector<LandmarkObs> predicted*/const
 	//   implement this method and use it as a helper during the updateWeights phase.
 
 	for (int p = 0; p < num_particles; ++p) {
+		particles[p].associations.clear();
 		for (int o = 0; o < observations.size(); ++o) {
 			// transform each sensor measurement ,which is in local(car) coordinates to global(map) coordinates
 			LandmarkObs transformed_observation;
