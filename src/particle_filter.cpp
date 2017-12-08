@@ -24,9 +24,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]){
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-	std::cout << "ParticleFilter::init" << std::endl;
-
-	default_random_engine gen;
 
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
@@ -46,16 +43,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]){
 		particles.push_back(particle);
 	}
 
-	for(int i = 0; i< weights.size(); i++) {
-		std::cout << weights[i] << std::endl;
-	}
-
-	for(int i = 0; i< particles.size(); i++) {
-		std::cout << "init p " << i << " " << particles[i].x << " "
-				<< particles[i].y << " "
-				<< particles[i].theta << " "<< std::endl;
-	}
-
 	is_initialized = true;
 }
 
@@ -64,7 +51,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-	std::cout << " delta_t " << delta_t << " velocity " << velocity << " yaw rate " << yaw_rate << std::endl;
+
+	normal_distribution<double> dist_x(0, std_pos[0]);
+	normal_distribution<double> dist_y(0, std_pos[1]);
+	normal_distribution<double> dist_theta(0, std_pos[2]);
 
 
 	for(int i = 0; i< particles.size(); i++) {
@@ -76,11 +66,14 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			particles[i].y += velocity * std::cos(particles[i].theta) * delta_t;
 		}
 		particles[i].theta += yaw_rate*delta_t;
+
+		particles[i].x += dist_x(gen);
+		particles[i].y += dist_y(gen);
+		particles[i].theta += dist_theta(gen);
+
 		//angle normalization
 	    while (particles[i].theta> M_PI) particles[i].theta-=2.*M_PI;
 	    while (particles[i].theta<-M_PI) particles[i].theta+=2.*M_PI;
-
-	    //std::cout << "prediction p " << i << " x " << particles[i].x << " y " << particles[i].y << " theta " << particles[i].theta << std::endl;
 	}
 
 }
@@ -105,6 +98,8 @@ void ParticleFilter::dataAssociation(const std::vector<LandmarkObs>& predicted, 
             }
         }
     }
+
+
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -119,8 +114,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
-
-	//std::cout << " update " << observations.size();
 
 
 	double sig_x = std_landmark[0];
@@ -145,8 +138,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			}
 		}
 
-		//std::cout << " predicted " << predicted.size();
-
 		for (int o = 0; o < observations.size(); o++) {
 			LandmarkObs transformed_observation;
 
@@ -158,14 +149,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 										+ observations[o].x * std::sin(particles[p].theta)
 										+ observations[o].y * std::cos(particles[p].theta);
 
-			//std::cout <<  "p " << p << " o " << o << " obs " << observations[o].x << ":" << observations[o].y <<
-			//			" trans " << transformed_observation.x << ":" << transformed_observation.y;
-
 			transformed_observations.push_back(transformed_observation);
 		}
-
-
-		//std::cout << " transformed " << transformed_observations.size() << std::endl;
 
 		dataAssociation(predicted, transformed_observations);
 
@@ -173,35 +158,38 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		particles[p].sense_x.clear();
 		particles[p].sense_y.clear();
 
-		for (int t=0; t < transformed_observations.size(); t++) {
-			particles[p].associations.push_back(transformed_observations[t].id);
-			particles[p].sense_x.push_back(transformed_observations[t].x);
-			particles[p].sense_y.push_back(transformed_observations[t].y);
+		if (!observations.size() || predicted.size() < observations.size()) {
+			particles[p].weight = 0;
+			weights.push_back(0);
+		} else {
+
+			for (int t=0; t < transformed_observations.size(); t++) {
+
+				particles[p].associations.push_back(transformed_observations[t].id);
+				particles[p].sense_x.push_back(transformed_observations[t].x);
+				particles[p].sense_y.push_back(transformed_observations[t].y);
+			}
+
+
+			double weight = 1.0;
+
+			for (int a = 0; a < particles[p].associations.size(); ++a) {
+
+				double mu_x = map_landmarks.landmark_list[particles[p].associations[a]-1].x_f;
+				double mu_y = map_landmarks.landmark_list[particles[p].associations[a]-1].y_f;
+
+				double x_obs = particles[p].sense_x[a];
+				double y_obs = particles[p].sense_y[a];
+
+				double gauss_norm = (1/(2 * M_PI * sig_x * sig_y));
+				double exponent = (pow(x_obs - mu_x,2))/(2 * pow(sig_x,2)) + (pow(y_obs - mu_y,2))/(2 * pow(sig_y,2));
+
+				weight *= gauss_norm * exp(-exponent);
+			}
+
+			particles[p].weight = weight;
+			weights.push_back(weight);
 		}
-
-
-		double weight = 1.0;
-		//std::cout << " p " << p;
-		for (int a = 0; a < particles[p].associations.size(); ++a) {
-			//std::cout << " o " << o;
-			double mu_x = map_landmarks.landmark_list[particles[p].associations[a]-1].x_f;
-			double mu_y = map_landmarks.landmark_list[particles[p].associations[a]-1].y_f;
-
-			double x_obs = particles[p].sense_x[a];
-			double y_obs = particles[p].sense_y[a];
-
-			//std::cout << " mu " << mu_x << ":" << mu_y << " obs " << x_obs << ":" << y_obs;
-
-			double gauss_norm = (1/(2 * M_PI * sig_x * sig_y));
-			double exponent = (pow(x_obs - mu_x,2))/(2 * pow(sig_x,2)) + (pow(y_obs - mu_y,2))/(2 * pow(sig_y,2));
-
-			weight *= gauss_norm * exp(-exponent);
-
-			//std::cout << " gn " << gauss_norm << " ex " << exponent << " w " << weight << std::endl;
-		}
-
-		particles[p].weight = weight;
-		weights.push_back(weight);
 	}
 
 }
