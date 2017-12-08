@@ -30,14 +30,16 @@ void ParticleFilter::init(double x, double y, double theta, double std[]){
 	normal_distribution<double> dist_theta(theta, std[2]);
 
 	for (int i=0; i<num_particles; i++) {
-		weights.push_back(1.0);
-
 		Particle particle;
 
+		// initialise particles with GPS measurements with noise
 		particle.id = i;
 		particle.x = dist_x(gen);
 		particle.y = dist_y(gen);
 		particle.theta = dist_theta(gen);
+
+		// set all weights to 1
+		weights.push_back(1.0);
 		particle.weight = weights[i];
 
 		particles.push_back(particle);
@@ -58,6 +60,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 
 	for(int i = 0; i< particles.size(); i++) {
+		// use bicycle motion model to predict particle position at the time step
 		if (std::abs(yaw_rate) > 0.001) {
 			particles[i].x += velocity * (std::sin(particles[i].theta + yaw_rate*delta_t) - std::sin(particles[i].theta)) / yaw_rate;
 			particles[i].y += velocity * (std::cos(particles[i].theta) - std::cos(particles[i].theta + yaw_rate*delta_t)) / yaw_rate;
@@ -67,6 +70,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		}
 		particles[i].theta += yaw_rate*delta_t;
 
+		// add motion gaussian noise
 		particles[i].x += dist_x(gen);
 		particles[i].y += dist_y(gen);
 		particles[i].theta += dist_theta(gen);
@@ -85,10 +89,13 @@ void ParticleFilter::dataAssociation(const std::vector<LandmarkObs>& predicted, 
 	//   implement this method and use it as a helper during the updateWeights phase.
 	
 
+	// associate observations with landmarks using nearest neighbour method
     for (int o = 0; o < observations.size(); ++o) {
         double min_distance = std::numeric_limits<double>::max();
 
         for (int l = 0; l < predicted.size(); ++l) {
+        	// no need to do the square root here. square of Eucleadean distance
+        	// is suffcient to find the minimum distance
         	double distance = pow(predicted[l].x - observations[o].x, 2)
 							 + pow(predicted[l].y - observations[o].y, 2);
 
@@ -125,6 +132,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		std::vector<LandmarkObs> predicted;
 		std::vector<LandmarkObs> transformed_observations;
 
+		// compile predicted landmark by collecting the landmarks within sensor range
 		for (int l = 0; l < map_landmarks.landmark_list.size(); l++) {
 			struct Map::single_landmark_s landmark = map_landmarks.landmark_list[l];
 
@@ -138,6 +146,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			}
 		}
 
+		// transform observations in to map co-rdinate system
 		for (int o = 0; o < observations.size(); o++) {
 			LandmarkObs transformed_observation;
 
@@ -162,15 +171,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			particles[p].weight = 0;
 			weights.push_back(0);
 		} else {
-
+			// Set particle associations
 			for (int t=0; t < transformed_observations.size(); t++) {
-
 				particles[p].associations.push_back(transformed_observations[t].id);
 				particles[p].sense_x.push_back(transformed_observations[t].x);
 				particles[p].sense_y.push_back(transformed_observations[t].y);
 			}
 
-
+			// Calculate particle weights
 			double weight = 1.0;
 
 			for (int a = 0; a < particles[p].associations.size(); ++a) {
@@ -181,7 +189,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 				double x_obs = particles[p].sense_x[a];
 				double y_obs = particles[p].sense_y[a];
 
-				double gauss_norm = (1/(2 * M_PI * sig_x * sig_y));
+				// gausaian norm is constant. there is no need to calculate this since
+				// the weights are normalised in the resampling step
+				double gauss_norm = 1; //(1/(2 * M_PI * sig_x * sig_y));
 				double exponent = (pow(x_obs - mu_x,2))/(2 * pow(sig_x,2)) + (pow(y_obs - mu_y,2))/(2 * pow(sig_y,2));
 
 				weight *= gauss_norm * exp(-exponent);
