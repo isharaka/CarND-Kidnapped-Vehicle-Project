@@ -65,8 +65,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			particles[i].x += velocity * (std::sin(particles[i].theta + yaw_rate*delta_t) - std::sin(particles[i].theta)) / yaw_rate;
 			particles[i].y += velocity * (std::cos(particles[i].theta) - std::cos(particles[i].theta + yaw_rate*delta_t)) / yaw_rate;
 		} else {
-			particles[i].x += velocity * std::sin(particles[i].theta) * delta_t;
-			particles[i].y += velocity * std::cos(particles[i].theta) * delta_t;
+			particles[i].x += velocity * std::cos(particles[i].theta) * delta_t;
+			particles[i].y += velocity * std::sin(particles[i].theta) * delta_t;
 		}
 		particles[i].theta += yaw_rate*delta_t;
 
@@ -74,10 +74,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		particles[i].x += dist_x(gen);
 		particles[i].y += dist_y(gen);
 		particles[i].theta += dist_theta(gen);
-
-		//angle normalization
-	    while (particles[i].theta> M_PI) particles[i].theta-=2.*M_PI;
-	    while (particles[i].theta<-M_PI) particles[i].theta+=2.*M_PI;
 	}
 
 }
